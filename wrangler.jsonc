@@ -20,6 +20,9 @@
     }
   ],
   "observability": { "enabled": true },
+  "secrets": {
+    "required": ["SESSION_SECRET", "ADMIN_SETUP_SECRET"]
+  },
   "triggers": {
     "crons": ["17 * * * *"]
   }

@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 
 const base = process.env.TEST_BASE_URL || 'http://127.0.0.1:8790';
+const setupSecret = process.env.TEST_ADMIN_SETUP_SECRET;
+assert.ok(setupSecret, 'TEST_ADMIN_SETUP_SECRET is required');
 let cookie = '';
 
 async function request(path, options = {}, expect = 200) {
@@ -37,7 +39,7 @@ async function finishPresentation(assertOrganization) {
 }
 
 const auth = await request('/api/admin/auth-status');
-if (!auth.configured) await request('/api/admin/setup-pin', { method: 'POST', body: JSON.stringify({ pin: '2468' }) }, 201);
+if (!auth.configured) await request('/api/admin/setup-pin', { method: 'POST', body: JSON.stringify({ pin: '2468', setupSecret }) }, 201);
 else await request('/api/admin/login', { method: 'POST', body: JSON.stringify({ pin: '2468' }) });
 
 await request('/api/admin/game', { method: 'POST', body: JSON.stringify({
@@ -136,7 +138,7 @@ await request('/api/admin/registration', { method: 'POST', body: JSON.stringify(
 await request('/api/admin/end-event', { method:'POST', body:'{}' });
 await request('/api/admin/purge-now', { method:'POST', body:JSON.stringify({ confirmation:'完全削除' }) });
 cookie = '';
-await request('/api/admin/setup-pin', { method:'POST', body:JSON.stringify({ pin:'2468' }) }, 201);
+await request('/api/admin/setup-pin', { method:'POST', body:JSON.stringify({ pin:'2468', setupSecret }) }, 201);
 
 await request('/api/admin/game', { method: 'POST', body: JSON.stringify({
   title: '所属非表示E2E', min: 1, max: 2, registrationMode: 'self-registration', participantCount: 2,
@@ -164,7 +166,7 @@ assert.equal(hiddenState.game.organization.showInResults, false);
 
 await request('/api/admin/purge-now', { method:'POST', body:JSON.stringify({ confirmation:'完全削除' }) });
 cookie = '';
-await request('/api/admin/setup-pin', { method:'POST', body:JSON.stringify({ pin:'2468' }) }, 201);
+await request('/api/admin/setup-pin', { method:'POST', body:JSON.stringify({ pin:'2468', setupSecret }) }, 201);
 await request('/api/admin/game', { method:'POST', body:JSON.stringify({
   title:'その他自由入力E2E', min:1, max:2, registrationMode:'self-registration', participantCount:2,
   organizationEnabled:true, organizationLabel:'所属', organizationInputMode:'select',

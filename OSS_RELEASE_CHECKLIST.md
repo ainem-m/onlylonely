@@ -22,17 +22,17 @@
 
 ## 公開前の機密情報・本番データ確認
 
-- `.dev.vars`、管理PIN、`SESSION_SECRET`、Cookie、ログ、参加者名、所属、個人QRトークン、共用端末トークンが含まれていないことを確認する。
+- `.dev.vars`、管理PIN、`SESSION_SECRET`、`ADMIN_SETUP_SECRET`、Cookie、ログ、参加者名、所属、個人QRトークン、共用端末トークンが含まれていないことを確認する。
 - Git履歴を含めて秘密情報と参加者情報を検索する。
 - `wrangler.jsonc`の本番D1 `database_id`を、利用者が自分のIDへ置き換える形式に変更する。
 - READMEから「作成済みの本番D1 IDが設定済み」という記述を削除する。
 - 本番URL、当日用設定、個人名を含むスクリーンショットや検証成果物を公開しない。
-- 必要であれば公開後に本番の`SESSION_SECRET`と管理PINを更新する。
+- 必要であれば公開後に本番の`SESSION_SECRET`、`ADMIN_SETUP_SECRET`、管理PINを更新する。
 
 ## 公開品質
 
 - READMEにセットアップ、ローカル起動、D1作成、マイグレーション、デプロイ方法を記載する。
-- `npm run check`、`npm test`、`wrangler deploy --dry-run`を実行する。
+- `npm run check`、`npm test`、`npm run test:e2e`、`wrangler deploy --dry-run --secrets-file .dev.vars.example`を実行する。
 - スマホ、共用端末、管理画面、会場表示、QR印刷、ルール説明ページを実ブラウザで確認する。
 - 本番運用固有のテスト参加者や初期データを削除する。
 - 公開するリポジトリ名、説明文、ライセンス、非公式表記を最終確認する。

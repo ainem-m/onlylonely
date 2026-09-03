@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 
 const base = process.env.TEST_BASE_URL || 'http://127.0.0.1:8787';
+const setupSecret = process.env.TEST_ADMIN_SETUP_SECRET;
+assert.ok(setupSecret, 'TEST_ADMIN_SETUP_SECRET is required');
 const persistTo = process.env.TEST_D1_PERSIST_TO;
 assert.ok(persistTo, 'TEST_D1_PERSIST_TO is required');
 let cookie = '';
@@ -33,7 +35,7 @@ async function scheduled() {
 
 async function setupPin() {
   const auth = await request('/api/admin/auth-status');
-  if (!auth.configured) await post('/api/admin/setup-pin', { pin:'2468' }, 201);
+  if (!auth.configured) await post('/api/admin/setup-pin', { pin:'2468', setupSecret }, 201);
   else if (!auth.authenticated) await post('/api/admin/login', { pin:'2468' });
 }
 

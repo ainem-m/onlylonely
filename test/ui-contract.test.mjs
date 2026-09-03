@@ -5,6 +5,41 @@ import { histogramGeometry } from '../public/histogram.js';
 
 const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
 const css = await readFile(new URL('../public/style.css', import.meta.url), 'utf8');
+const index = await readFile(new URL('../public/index.html', import.meta.url), 'utf8');
+
+test('every major screen identifies the unofficial inspiration and links to the original', () => {
+  assert.match(app, /ほぼ日刊イトイ新聞「ONLYでLONELY」に着想を得た非公式・非公認の実装/);
+  assert.match(app, /https:\/\/www\.1101\.com\/only_lonely\/2003-04\.html/);
+  assert.match(app, /target="_blank" rel="noopener noreferrer">公式企画を見る/);
+  assert.match(app, /const brand = `<div class="brand-block">.*\$\{attribution\}/);
+  assert.match(app, /class="rules-stage-brand">ONLY .*\$\{attribution\}/);
+  assert.match(css, /\.present \.attribution\{/);
+});
+
+test('shared-device privileges and handling are explicit to participants and administrators', () => {
+  assert.match(index, /id="shared-device-guidance"[^>]*hidden/);
+  assert.match(index, /司会者が管理する信頼端末/);
+  assert.match(index, /共用URLは共有しない/);
+  assert.match(index, /利用者は端末を持ち出さず/);
+  assert.match(index, /ほかの参加者を選んで投票できる/);
+  assert.match(app, /shared-device-guidance'\)\.hidden = Boolean\(token\) \|\| !path\.startsWith\('\/shared'\)/);
+  assert.match(app, /shared-device-guidance'\)\.hidden = true/);
+  assert.match(app, /共用URLは参加者へ共有せず、利用者に端末を持ち出させないでください/);
+  assert.match(app, /参加者を選んで投票できる画面/);
+  assert.match(css, /\.shared-device-notice\{/);
+});
+
+test('initial PIN setup requires the deployment setup secret separately', () => {
+  assert.match(app, /<span>セットアップ秘密情報<\/span><input id="setup-secret" type="password"/);
+  assert.match(app, /初回セットアップ専用の秘密情報です。これから作る管理PINとは別物です/);
+  assert.match(app, /const setupSecret = document\.querySelector\('#setup-secret'\)\.value/);
+  assert.match(app, /JSON\.stringify\(\{ pin, setupSecret \}\)/);
+});
+
+test('the default game title is neutral', () => {
+  assert.match(app, /value="社内交流会 数字ゲーム"/);
+  assert.doesNotMatch(app, /value="2026年懇親会 ONLY LONELY"/);
+});
 
 test('first-time participant gets a three-step path, rule, identity, and recovery', () => {
   assert.match(app, /ステップ \$\{step\} \/ 3/);

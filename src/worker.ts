@@ -5,6 +5,7 @@ interface Env {
   DB: D1Database;
   ASSETS: Fetcher;
   SESSION_SECRET: string;
+  ADMIN_SETUP_SECRET: string;
 }
 
 type Game = {
@@ -40,8 +41,12 @@ class InputError extends Error {}
 
 async function body(request: Request): Promise<Record<string, unknown>> {
   const type = request.headers.get('content-type') || '';
-  if (!type.includes('application/json')) throw new Error('JSONで送信してください。');
-  return request.json<Record<string, unknown>>();
+  if (!type.includes('application/json')) throw new InputError('JSONで送信してください。');
+  try {
+    return await request.json<Record<string, unknown>>();
+  } catch {
+    throw new InputError('JSONの形式が不正です。');
+  }
 }
 
 function bytesToHex(bytes: ArrayBuffer) {
@@ -71,6 +76,15 @@ function safeEqual(a: string, b: string) {
   let mismatch = 0;
   for (let i = 0; i < a.length; i++) mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return mismatch === 0;
+}
+
+function isUsableSetupSecret(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  const trimmed = value.trim();
+  if (trimmed.length < 32 || new Set(trimmed).size < 8) return false;
+  const normalized = trimmed.toLowerCase();
+  return !['replace-with', 'change-me', 'changeme', 'placeholder', 'example', 'not-for-production', 'local-test']
+    .some((marker) => normalized.includes(marker));
 }
 
 const nowSeconds = () => Math.floor(Date.now() / 1000);
@@ -318,8 +332,7 @@ async function castVote(env: Env, game: Game, data: Record<string, unknown>, all
     }
   }
   const number = requireInt(data.number, '数字', game.min_number, game.max_number);
-  const results = await env.DB.batch([
-    env.DB.prepare(`INSERT INTO round_votes(round_id,game_id,participant_id,number,display_name_snapshot,organization_snapshot)
+  const inserted = await env.DB.prepare(`INSERT INTO round_votes(round_id,game_id,participant_id,number,display_name_snapshot,organization_snapshot)
       SELECT ?,?,?,?,CASE WHEN g.registration_mode='self-registration' THEN r.display_name ELSE p.display_name END,
         CASE WHEN g.registration_mode='self-registration' THEN r.organization ELSE NULL END
       FROM participants p JOIN games g ON g.id=p.game_id LEFT JOIN participant_registrations r ON r.participant_id=p.id
@@ -327,15 +340,13 @@ async function castVote(env: Env, game: Game, data: Record<string, unknown>, all
       WHERE p.id=? AND p.game_id=? AND gr.status='voting' AND g.ended_at IS NULL
       AND (EXISTS(SELECT 1 FROM games WHERE id=? AND registration_mode='roster')
         OR EXISTS(SELECT 1 FROM participant_registrations WHERE participant_id=?))
-      AND NOT EXISTS(SELECT 1 FROM round_votes WHERE round_id=? AND participant_id=?)`)
-      .bind(game.round_id, game.id, participantId, number, game.round_id, participantId, game.id, game.id, participantId, game.round_id, participantId),
-    env.DB.prepare(`UPDATE game_rounds SET status='closed' WHERE id=? AND status='voting'
-      AND NOT EXISTS(SELECT 1 FROM participants p LEFT JOIN round_votes v ON v.round_id=? AND v.participant_id=p.id WHERE p.game_id=? AND v.id IS NULL)`)
-      .bind(game.round_id, game.round_id, game.id),
-    env.DB.prepare('UPDATE games SET last_activity_at=? WHERE id=? AND ended_at IS NULL').bind(nowSeconds(), game.id),
-  ]);
-  if ((results[0].meta.changes ?? 0) !== 1) return fail(game.registration_mode === 'self-registration' ? '未登録か、すでに投票済みです。' : 'この参加者はすでに投票済みです。', 409);
-  return json({ ok: true, autoClosed: (results[1].meta.changes ?? 0) > 0 }, 201);
+      AND NOT EXISTS(SELECT 1 FROM round_votes WHERE round_id=? AND participant_id=?)
+      RETURNING id`)
+    .bind(game.round_id, game.id, participantId, number, game.round_id, participantId, game.id, game.id, participantId, game.round_id, participantId)
+    .first<{ id: number }>();
+  if (!inserted) return fail(game.registration_mode === 'self-registration' ? '未登録か、すでに投票済みです。' : 'この参加者はすでに投票済みです。', 409);
+  const round = await env.DB.prepare('SELECT status FROM game_rounds WHERE id=?').bind(game.round_id).first<{ status: string }>();
+  return json({ ok: true, autoClosed: round?.status === 'closed' }, 201);
 }
 
 async function route(request: Request, env: Env): Promise<Response> {
@@ -346,7 +357,7 @@ async function route(request: Request, env: Env): Promise<Response> {
     const text = url.searchParams.get('text') || '';
     if (!text || text.length > 500) return fail('QRコードのURLが不正です。');
     const svg = await QRCode.toString(text, { type: 'svg', errorCorrectionLevel: 'M', margin: 2, color: { dark: '#080914', light: '#ffffff' } });
-    return new Response(svg, { headers: { 'content-type': 'image/svg+xml; charset=utf-8', 'cache-control': 'public, max-age=3600', 'x-content-type-options': 'nosniff' } });
+    return new Response(svg, { headers: { 'content-type': 'image/svg+xml; charset=utf-8', 'cache-control': 'private, no-store', 'x-content-type-options': 'nosniff' } });
   }
   if (path === '/api/game' && request.method === 'GET') {
     const game = await activeGame(env.DB);
@@ -411,7 +422,12 @@ async function route(request: Request, env: Env): Promise<Response> {
     return json({ configured, authenticated: configured && await isAdmin(request, env) });
   }
   if (path === '/api/admin/setup-pin' && request.method === 'POST') {
+    if (await env.DB.prepare('SELECT 1 AS configured FROM admin_auth WHERE id=1').first()) return fail('管理PINはすでに設定されています。', 409);
     const data = await body(request);
+    const setupSecret = typeof data.setupSecret === 'string' ? data.setupSecret : '';
+    if (!isUsableSetupSecret(env.ADMIN_SETUP_SECRET) || !safeEqual(setupSecret, env.ADMIN_SETUP_SECRET)) {
+      return fail('初回設定の認証情報が無効です。', 403);
+    }
     const pin = typeof data.pin === 'string' ? data.pin : '';
     if (!/^\d{4,8}$/.test(pin)) return fail('PINは4〜8桁の数字にしてください。');
     const salt = randomHex();
@@ -440,7 +456,15 @@ async function route(request: Request, env: Env): Promise<Response> {
       const locked = Boolean(failure && failure.locked_until > now);
       return fail(locked ? 'PINを5回間違えたため、5分間ログインできません。' : 'PINが違います。', locked ? 429 : 401);
     }
-    await env.DB.prepare("UPDATE admin_auth SET failed_attempts=0,locked_until=0,updated_at=CURRENT_TIMESTAMP WHERE id=1").run();
+    if (auth.pin_iterations < PIN_ITERATIONS) {
+      const upgradedSalt = randomHex();
+      const upgradedHash = await hashPin(pin, upgradedSalt);
+      await env.DB.prepare(`UPDATE admin_auth SET pin_salt=?,pin_hash=?,pin_iterations=?,failed_attempts=0,locked_until=0,updated_at=CURRENT_TIMESTAMP
+        WHERE id=1 AND pin_hash=? AND pin_iterations=?`)
+        .bind(upgradedSalt, upgradedHash, PIN_ITERATIONS, auth.pin_hash, auth.pin_iterations).run();
+    } else {
+      await env.DB.prepare("UPDATE admin_auth SET failed_attempts=0,locked_until=0,updated_at=CURRENT_TIMESTAMP WHERE id=1").run();
+    }
     const token = await makeSession(env);
     return json({ ok: true }, 200, { 'set-cookie': `ol_admin=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=43200` });
   }
@@ -756,9 +780,9 @@ export default {
       headers.set('x-frame-options', 'DENY');
       return new Response(asset.body, { status: asset.status, statusText: asset.statusText, headers });
     } catch (error) {
-      console.error(error);
       if (error instanceof InputError) return fail(error.message, 400);
-      return fail(error instanceof Error ? error.message : 'サーバーエラーが発生しました。', 500);
+      console.error('Unhandled request error');
+      return fail('サーバーエラーが発生しました。', 500);
     }
   },
   async scheduled(controller: ScheduledController, env: Env): Promise<void> {

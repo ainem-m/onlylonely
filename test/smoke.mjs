@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 
 const base = process.env.TEST_BASE_URL || 'http://127.0.0.1:8787';
+const setupSecret = process.env.TEST_ADMIN_SETUP_SECRET;
+assert.ok(setupSecret, 'TEST_ADMIN_SETUP_SECRET is required');
 let cookie = '';
 async function request(path, options = {}, expect = 200) {
   const response = await fetch(base + path, { ...options, headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}), ...(options.headers || {}) } });
@@ -16,7 +18,8 @@ await request('/api/admin/participant-links', {}, 401);
 await request('/api/participant?token=00000000000000000000000000000000', {}, 404);
 const authStatus = await request('/api/admin/auth-status');
 if (!authStatus.configured) {
-  await request('/api/admin/setup-pin', { method: 'POST', body: JSON.stringify({ pin: '2468' }) }, 201);
+  await request('/api/admin/setup-pin', { method: 'POST', body: JSON.stringify({ pin: '2468' }) }, 403);
+  await request('/api/admin/setup-pin', { method: 'POST', body: JSON.stringify({ pin: '2468', setupSecret }) }, 201);
   await request('/api/admin/setup-pin', { method: 'POST', body: JSON.stringify({ pin: '9999' }) }, 409);
 }
 await request('/api/admin/login', { method: 'POST', body: JSON.stringify({ pin: '1111' }) }, 401);
@@ -51,6 +54,10 @@ assert.deepEqual(duplicateResponses.map((response) => response.status).sort(), [
 const directAfterVote = await request(`/api/participant?token=${personal['Aさん']}`);
 assert.equal(directAfterVote.participant.has_voted, 1);
 assert.equal(Number(directAfterVote.participant.game_id), Number(publicGame.game.id));
+const activityBeforeRejectedVote = (await request('/api/admin/state')).game.lastActivityAt;
+await new Promise((resolve) => setTimeout(resolve, 1_100));
+await request('/api/vote', { method: 'POST', body: JSON.stringify({ token: personal['Aさん'], number: 3 }) }, 409);
+assert.equal((await request('/api/admin/state')).game.lastActivityAt, activityBeforeRejectedVote, 'rejected vote extended retention');
 await request('/api/vote', { method: 'POST', body: JSON.stringify({ participantId: ids['Bさん'], sharedToken, number: 3 }) }, 201);
 await request('/api/vote', { method: 'POST', body: JSON.stringify({ token: personal['Dさん'], number: 1 }) }, 201);
 const beforeLast = await request('/api/admin/state');
@@ -98,6 +105,7 @@ assert.equal(final.distribution.find((row) => Number(row.number) === 3).count, 2
 const svg = await fetch(base + '/api/qr?text=' + encodeURIComponent(base + '/'));
 assert.equal(svg.status, 200);
 assert.match(svg.headers.get('content-type'), /image\/svg\+xml/);
+assert.match(svg.headers.get('cache-control') || '', /no-store/);
 assert.match(await svg.text(), /<svg/);
 
 console.log('API smoke passed: auth, secrecy, voting, lock, countdown, champion, distribution, QR');

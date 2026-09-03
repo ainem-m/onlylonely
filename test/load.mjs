@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
 
 const base = process.env.TEST_BASE_URL || 'http://127.0.0.1:8787';
+const setupSecret = process.env.TEST_ADMIN_SETUP_SECRET;
+assert.ok(setupSecret, 'TEST_ADMIN_SETUP_SECRET is required');
 let cookie = '';
 async function request(path, options = {}, expect = 200) {
   const response = await fetch(base + path, { ...options, headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}), ...(options.headers || {}) } });
@@ -13,7 +15,7 @@ async function request(path, options = {}, expect = 200) {
 }
 
 const auth = await request('/api/admin/auth-status');
-if (!auth.configured) await request('/api/admin/setup-pin', { method:'POST', body:JSON.stringify({ pin:'2468' }) }, 201);
+if (!auth.configured) await request('/api/admin/setup-pin', { method:'POST', body:JSON.stringify({ pin:'2468', setupSecret }) }, 201);
 else await request('/api/admin/login', { method: 'POST', body: JSON.stringify({ pin: '2468' }) });
 const names = Array.from({ length: 32 }, (_, i) => `負荷参加者${String(i + 1).padStart(2, '0')}`);
 await request('/api/admin/game', { method: 'POST', body: JSON.stringify({ title: '32人同時投票テスト', min: 1, max: 18, names }) }, 201);

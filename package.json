@@ -4,10 +4,15 @@
   "private": true,
   "license": "MIT",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "wrangler dev",
     "check": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test test/*.test.mjs",
+    "test": "npm run test:unit",
+    "test:unit": "node --experimental-strip-types --test test/*.test.mjs",
+    "test:e2e": "node scripts/test-e2e.mjs",
     "deploy": "wrangler deploy"
   },
   "devDependencies": {

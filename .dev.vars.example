@@ -1,1 +1,2 @@
 SESSION_SECRET="replace-with-a-long-random-string"
+ADMIN_SETUP_SECRET="replace-with-another-long-random-string"

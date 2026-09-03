@@ -1,17 +1,22 @@
+import argparse
+import os
 from pathlib import Path
 
-from reportlab.lib.colors import HexColor, white
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.pdfgen import canvas
+try:
+    from reportlab.lib.colors import HexColor, white
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    from reportlab.pdfgen import canvas
+except ModuleNotFoundError as error:
+    if error.name == "reportlab":
+        raise SystemExit("ReportLabが見つかりません。Python環境へreportlabをインストールしてください。") from None
+    raise
 
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "output" / "pdf" / "only_lonely_rules_a4.pdf"
-FONT_REGULAR = "/Users/ainem/Library/Fonts/PlemolJP-Regular.ttf"
-FONT_BOLD = "/Users/ainem/Library/Fonts/PlemolJP-SemiBold.ttf"
-FONT_EXTRA_BOLD = "/Users/ainem/Library/Fonts/PlemolJP-Bold.ttf"
+OFFICIAL_URL = "https://www.1101.com/only_lonely/2003-04.html"
 
 INK = HexColor("#151515")
 MID = HexColor("#555555")
@@ -19,10 +24,46 @@ LIGHT = HexColor("#D9D9D9")
 PALE = HexColor("#F5F5F5")
 
 
-def register_fonts():
-    pdfmetrics.registerFont(TTFont("JP", FONT_REGULAR))
-    pdfmetrics.registerFont(TTFont("JP-Bold", FONT_BOLD))
-    pdfmetrics.registerFont(TTFont("JP-ExtraBold", FONT_EXTRA_BOLD))
+def parse_args():
+    parser = argparse.ArgumentParser(description="参加者用ルール説明PDFを生成します。")
+    parser.add_argument(
+        "--font-regular",
+        type=Path,
+        default=os.environ.get("ONLY_LONELY_FONT_REGULAR"),
+        help="日本語フォント（環境変数 ONLY_LONELY_FONT_REGULAR でも指定可能）",
+    )
+    parser.add_argument(
+        "--font-bold",
+        type=Path,
+        default=os.environ.get("ONLY_LONELY_FONT_BOLD"),
+        help="日本語太字フォント（環境変数 ONLY_LONELY_FONT_BOLD でも指定可能）",
+    )
+    parser.add_argument(
+        "--font-extra-bold",
+        type=Path,
+        default=os.environ.get("ONLY_LONELY_FONT_EXTRA_BOLD"),
+        help="日本語極太フォント（環境変数 ONLY_LONELY_FONT_EXTRA_BOLD でも指定可能）",
+    )
+    return parser.parse_args()
+
+
+def register_fonts(font_regular, font_bold, font_extra_bold):
+    fonts = [
+        ("JP", font_regular, "--font-regular / ONLY_LONELY_FONT_REGULAR"),
+        ("JP-Bold", font_bold, "--font-bold / ONLY_LONELY_FONT_BOLD"),
+        ("JP-ExtraBold", font_extra_bold, "--font-extra-bold / ONLY_LONELY_FONT_EXTRA_BOLD"),
+    ]
+    problems = []
+    for _, path, setting in fonts:
+        if path is None:
+            problems.append(f"{setting} が未指定です")
+        elif not Path(path).is_file():
+            problems.append(f"{setting} で指定したファイルを読み取れません")
+    if problems:
+        raise SystemExit("フォント設定を確認してください:\n- " + "\n- ".join(problems))
+
+    for name, path, _ in fonts:
+        pdfmetrics.registerFont(TTFont(name, str(path)))
 
 
 def draw_text(c, text, x, y, size=10, font="JP", color=INK):
@@ -102,8 +143,8 @@ def draw_step(c, x, y, width, number, heading, body):
         ty -= 13
 
 
-def build_pdf():
-    register_fonts()
+def build_pdf(font_regular, font_bold, font_extra_bold):
+    register_fonts(font_regular, font_bold, font_extra_bold)
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     width, height = A4
     c = canvas.Canvas(str(OUTPUT), pagesize=A4, pageCompression=1)
@@ -198,7 +239,7 @@ def build_pdf():
     draw_text(c, "ONLY LONELY", margin, 24, 7.5, "JP-Bold", MID)
     c.setFont("JP", 7.5)
     c.setFillColor(MID)
-    c.drawRightString(width - margin, 24, "A4 / 1ページ")
+    c.drawRightString(width - margin, 24, "非公式・非公認Web実装 / 公式企画: " + OFFICIAL_URL)
 
     c.showPage()
     c.save()
@@ -206,4 +247,5 @@ def build_pdf():
 
 
 if __name__ == "__main__":
-    build_pdf()
+    args = parse_args()
+    build_pdf(args.font_regular, args.font_bold, args.font_extra_bold)

@@ -23,7 +23,8 @@ async function api(url, options = {}) {
   if (!response.ok) throw new Error(data.error || '通信に失敗しました。');
   return data;
 }
-const brand = '<h1 class="brand">ONLY<br><span>LONELY</span></h1>';
+const attribution = '<p class="attribution">本アプリは、ほぼ日刊イトイ新聞「ONLYでLONELY」に着想を得た非公式・非公認の実装です。<a href="https://www.1101.com/only_lonely/2003-04.html" target="_blank" rel="noopener noreferrer">公式企画を見る</a></p>';
+const brand = `<div class="brand-block"><h1 class="brand">ONLY<br><span>LONELY</span></h1>${attribution}</div>`;
 const roundBadge = (game = state.game) => game?.roundNumber ? `<div class="round-badge">第${Number(game.roundNumber)}回</div>` : '';
 const button = (label, id, cls = '') => `<button type="button" class="btn ${cls}" id="${id}">${label}</button>`;
 const flowStep = (step, label) => `<div class="flow-step"><span>ステップ ${step} / 3</span><strong>${label}</strong></div>`;
@@ -50,7 +51,7 @@ function rulesPage() {
   let current = 0;
   const renderSlide = () => {
     const slide = ruleSlides[current];
-    app.innerHTML = `<main class="rules-stage"><div class="rules-stage-brand">ONLY <span>LONELY</span></div><section class="rule-stage-card" aria-live="polite"><p class="rule-step">STEP ${slide.step} / ${ruleSlides.length}</p><h2>${slide.title}</h2><div class="rule-visual" aria-hidden="true">${slide.visual}</div><p class="rules-stage-text">${slide.text}</p></section><nav class="rules-controls" aria-label="ルール説明の操作"><button type="button" class="btn secondary" id="rule-prev" ${current===0?'disabled':''}>前へ</button><span>${current + 1} / ${ruleSlides.length}</span><button type="button" class="btn gold" id="rule-next">${current===ruleSlides.length-1?'説明を終了':'次へ'}</button></nav></main>`;
+    app.innerHTML = `<main class="rules-stage"><div><div class="rules-stage-brand">ONLY <span>LONELY</span></div>${attribution}</div><section class="rule-stage-card" aria-live="polite"><p class="rule-step">STEP ${slide.step} / ${ruleSlides.length}</p><h2>${slide.title}</h2><div class="rule-visual" aria-hidden="true">${slide.visual}</div><p class="rules-stage-text">${slide.text}</p></section><nav class="rules-controls" aria-label="ルール説明の操作"><button type="button" class="btn secondary" id="rule-prev" ${current===0?'disabled':''}>前へ</button><span>${current + 1} / ${ruleSlides.length}</span><button type="button" class="btn gold" id="rule-next">${current===ruleSlides.length-1?'説明を終了':'次へ'}</button></nav></main>`;
     document.querySelector('#rule-prev').onclick = () => { current -= 1; renderSlide(); };
     document.querySelector('#rule-next').onclick = () => {
       if (current < ruleSlides.length - 1) { current += 1; renderSlide(); }
@@ -84,6 +85,7 @@ function renderWaiting(title, message, retry, key) {
 
 async function participantApp() {
   const token = new URLSearchParams(location.search).get('p');
+  document.querySelector('#shared-device-guidance').hidden = Boolean(token) || !path.startsWith('/shared');
   if (token) return individualParticipantApp(token);
   const sharedToken = new URLSearchParams(location.search).get('s') || state.sharedToken || '';
   let data;
@@ -101,6 +103,7 @@ async function participantApp() {
 }
 
 async function individualParticipantApp(token) {
+  document.querySelector('#shared-device-guidance').hidden = true;
   let data;
   try { data = await api(`/api/participant?token=${encodeURIComponent(token)}`); } catch (e) { return renderError(e); }
   const p = data.participant;
@@ -384,13 +387,14 @@ async function pollPersonalPresentation() {
 }
 
 function adminPinSetup() {
-  app.innerHTML = `<main class="shell participant">${brand}<form class="card stack" id="pin-setup"><p class="eyebrow">初回のみ</p><h2>司会者用の管理PINを設定</h2><p class="lead">司会者画面を守る4〜8桁の数字です。当日の司会担当者だけで共有してください。</p><label class="field"><span>管理PIN</span><input id="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="new-password" placeholder="4〜8桁" required></label><label class="field"><span>管理PIN（確認）</span><input id="pin-confirm" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="new-password" required></label><button type="submit" class="btn gold block" id="setup-pin">PINを設定してゲーム準備へ</button><p class="helper center">この設定画面は初回認証時だけ表示されます。</p></form></main>`;
+  app.innerHTML = `<main class="shell participant">${brand}<form class="card stack" id="pin-setup"><p class="eyebrow">初回のみ</p><h2>司会者用の管理PINを設定</h2><p class="lead">司会者画面を守る4〜8桁の数字です。当日の司会担当者だけで共有してください。</p><label class="field"><span>セットアップ秘密情報</span><input id="setup-secret" type="password" autocomplete="off" required></label><p class="helper">デプロイ時に設定した初回セットアップ専用の秘密情報です。これから作る管理PINとは別物です。</p><label class="field"><span>管理PIN</span><input id="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="new-password" placeholder="4〜8桁" required></label><label class="field"><span>管理PIN（確認）</span><input id="pin-confirm" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="new-password" required></label><button type="submit" class="btn gold block" id="setup-pin">PINを設定してゲーム準備へ</button><p class="helper center">この設定画面は初回認証時だけ表示されます。</p></form></main>`;
   document.querySelector('#pin-setup').onsubmit = async (event) => {
     event.preventDefault();
     const pin = document.querySelector('#pin').value;
+    const setupSecret = document.querySelector('#setup-secret').value;
     if (!/^\d{4,8}$/.test(pin)) return showToast('PINは4〜8桁の数字にしてください。', true);
     if (pin !== document.querySelector('#pin-confirm').value) return showToast('確認用PINが一致しません。', true);
-    try { await api('/api/admin/setup-pin', { method:'POST', body: JSON.stringify({ pin }) }); await adminApp(); } catch(e) { showToast(e.message, true); }
+    try { await api('/api/admin/setup-pin', { method:'POST', body: JSON.stringify({ pin, setupSecret }) }); await adminApp(); } catch(e) { showToast(e.message, true); }
   };
   focusHeading();
 }
@@ -430,7 +434,7 @@ function renderSetup() {
   state.lastAdminStatus = null;
   app.innerHTML = `<main class="shell participant">${brand}<form class="card stack" id="game-setup">
     <div><p class="eyebrow">ゲーム準備 1 / 2</p><h2>ゲームと参加者を登録</h2><p class="lead">名簿を登録する方法と、番号QRから本人が登録する方法を選べます。</p></div>
-    <label class="field"><span>ゲーム名</span><input id="title" value="2026年懇親会 ONLY LONELY" maxlength="100" required></label>
+    <label class="field"><span>ゲーム名</span><input id="title" value="社内交流会 数字ゲーム" maxlength="100" required></label>
     <div class="grid2"><label class="field"><span>最小の数字</span><input id="min" type="number" value="1" min="1" max="999" required></label><label class="field"><span>最大の数字</span><input id="max" type="number" value="18" min="1" max="999" required></label></div>
     <label class="field"><span>参加者の登録方法</span><select id="registration-mode"><option value="roster">名簿を事前登録</option><option value="self-registration">番号QRから本人が初回登録</option></select></label>
     <section id="roster-settings" class="setup-panel"><label class="field"><span>参加者（1行に1名）</span><textarea id="names" placeholder="山田 太郎&#10;佐藤 花子"></textarea></label><div class="name-summary notice" id="name-summary" aria-live="polite">参加者を1行に1名ずつ入力してください。</div></section>
@@ -546,7 +550,7 @@ function renderAdminDashboard(data) {
   state.lastAdminStatus = stateKey;
   const participantUrl = `${location.origin}/shared?s=${encodeURIComponent(g.sharedToken)}`;
   const pres = data.presentation;
-  const utility = ended ? '' : `<details class="utility-panel"><summary>補助メニューを開く</summary><div class="toolbar"><a class="btn secondary" href="/rules?mode=present" target="_blank" rel="noopener">ルール説明を会場に表示 ↗</a><a class="btn secondary" href="/present" target="_blank">会場の発表画面 ↗</a><a class="btn secondary" href="/admin/print" target="_blank">参加者QRカード ↗</a><a class="btn secondary" href="${participantUrl}" target="_blank" rel="noopener">共用端末 ↗</a><button type="button" class="btn secondary" id="copy-link">共用端末URLをコピー</button></div></details>`;
+  const utility = ended ? '' : `<details class="utility-panel"><summary>補助メニューを開く</summary><div class="toolbar"><a class="btn secondary" href="/rules?mode=present" target="_blank" rel="noopener">ルール説明を会場に表示 ↗</a><a class="btn secondary" href="/present" target="_blank" rel="noopener">会場の発表画面 ↗</a><a class="btn secondary" href="/admin/print" target="_blank" rel="noopener">参加者QRカード ↗</a><a class="btn secondary" href="${participantUrl}" target="_blank" rel="noopener">共用端末 ↗</a><button type="button" class="btn secondary" id="copy-link">共用端末URLをコピー</button></div></details>`;
   app.innerHTML = `<main class="shell"><div class="row between">${brand}<div class="pill"><b>第${g.roundNumber}回</b>　現在：${ended?'イベント終了':statusLabel(g.status)}</div></div>${adminGuideHtml(data)}${utility}<div class="admin-layout"><section class="card"><div class="statusbar"><div><p class="eyebrow">第${g.roundNumber}回・投票状況</p><h2>${escapeHtml(g.title)}</h2><p class="helper">${ended ? 'イベント終了後の確認画面です。新しい操作はできません。' : voting ? `残り ${data.total - data.voted}名。全員が投票すると自動で締め切ります。` : statusHelp(g.status)}</p></div><div class="count" aria-label="${data.total}人中${data.voted}人が投票済み">${data.voted}<small> / ${data.total}</small></div></div><div class="participant-list">${data.participants.map(p => adminParticipantRowHtml(p,g)).join('')}</div></section><aside class="stack">${!ended && voting ? proxyVoteHtml(data) : ''}${!ended && closed ? '<section class="card notice"><b>入力を直す場合</b><p>対象者の「票を解除」→「締切を取り消す」の順で操作してください。</p></section>' : ''}${pres ? presentationControlHtml(pres) : ''}</aside></div>${!ended && (voting || closed || g.status === 'setup') ? dangerActionsHtml(g.status, g.roundNumber) : ''}${finished ? distributionHtml(data) : ''}${roundHistoryHtml(data)}</main>`;
   if (state.adminDraft && voting) {
     const person = document.querySelector('#proxy-person'); const number = document.querySelector('#proxy-number');
@@ -627,8 +631,8 @@ function adminGuideHtml(data) {
   if (g.endedAt) return `<section class="next-action stack retention-panel"><p class="eyebrow">イベント終了済み</p><h2>個人情報の削除まで残り ${escapeHtml(purgeCountdown(g.purgeAfter))}</h2><p class="lead">削除予定：${escapeHtml(formatEventTime(g.purgeAfter))}</p><p class="notice">予定時刻になると、氏名・所属・投票・全ラウンド履歴・QR認証情報・管理PINを削除します。それまでは下の履歴を確認できます。</p><details class="danger-zone"><summary>予定を待たずに削除する</summary><p>この操作は取り消せません。削除後は管理PINの初回設定から始まります。</p>${button('今すぐ完全削除','purge-now','danger')}</details></section>`;
   if (g.status === 'setup') {
     const expansion = g.registrationMode === 'self-registration' ? `<details class="setup-panel"><summary>参加人数と数字の上限を増やす</summary><p class="helper">既存QRはそのまま使えます。追加した参加者にだけ新しいQRを渡します。</p><div class="grid2"><label class="field"><span>追加人数</span><input id="add-participants" type="number" min="1" max="${100-data.total}" value="5"></label><label class="field"><span>数字をいくつ増やすか</span><input id="add-numbers" type="number" min="1" max="${999-g.max}" value="4"></label></div>${button('人数と数字を追加','expand-setup','secondary block')}</details>` : '';
-    const addedPrint = state.newCardsFrom ? `<a class="btn gold block" href="/admin/print?from=${state.newCardsFrom}" target="_blank">追加したQRだけ印刷 ↗</a>` : '';
-    return `<section class="next-action stack"><p class="eyebrow">第${g.roundNumber}回・次にすること</p><h2>${g.roundNumber === 1 ? '配布物と会場画面を準備する' : '同じQRで次の投票を準備する'}</h2><ol class="checklist"><li><a href="/rules?mode=present" target="_blank" rel="noopener">ルール説明</a>を会場スクリーンで確認する</li>${g.roundNumber === 1 ? '<li><a href="/admin/print" target="_blank">参加者QRカードを印刷</a>して本人へ配る</li>' : '<li>配布済みの個人QRをそのまま使う</li>'}<li><a href="/present" target="_blank">発表画面</a>を会場スクリーンに表示する</li><li>スマホを使えない人用に<a href="${sharedUrl}" target="_blank" rel="noopener">共用端末</a>を開く</li></ol>${addedPrint}${expansion}<p class="notice">準備ができたら第${g.roundNumber}回の投票受付を開始します。</p>${button(`第${g.roundNumber}回の投票受付を開始`,'start','cyan block') }</section>`;
+    const addedPrint = state.newCardsFrom ? `<a class="btn gold block" href="/admin/print?from=${state.newCardsFrom}" target="_blank" rel="noopener">追加したQRだけ印刷 ↗</a>` : '';
+    return `<section class="next-action stack"><p class="eyebrow">第${g.roundNumber}回・次にすること</p><h2>${g.roundNumber === 1 ? '配布物と会場画面を準備する' : '同じQRで次の投票を準備する'}</h2><ol class="checklist"><li><a href="/rules?mode=present" target="_blank" rel="noopener noreferrer">ルール説明</a>を会場スクリーンで確認する</li>${g.roundNumber === 1 ? '<li><a href="/admin/print" target="_blank" rel="noopener noreferrer">参加者QRカードを印刷</a>して本人へ配る</li>' : '<li>配布済みの個人QRをそのまま使う</li>'}<li><a href="/present" target="_blank" rel="noopener noreferrer">発表画面</a>を会場スクリーンに表示する</li><li>スマホを使えない人用に<a href="${sharedUrl}" target="_blank" rel="noopener noreferrer">共用端末</a>を開く</li></ol><p class="notice admin-shared-notice"><b>共用端末は司会者が管理する信頼端末だけで開いてください。</b><br>共用URLは参加者へ共有せず、利用者に端末を持ち出させないでください。参加者を選んで投票できる画面のため、司会者の監督下で1人ずつ使用します。</p>${addedPrint}${expansion}<p class="notice">準備ができたら第${g.roundNumber}回の投票受付を開始します。</p>${button(`第${g.roundNumber}回の投票受付を開始`,'start','cyan block') }</section>`;
   }
   if (g.status === 'voting') return `<section class="next-action stack"><p class="eyebrow">次にすること</p><h2>未投票者を確認する</h2><p class="lead">残り <b>${data.total - data.voted}名</b>です。全員の投票が終わると、自動で「発表準備完了」になります。</p></section>`;
   if (g.status === 'closed') return `<section class="next-action stack"><p class="eyebrow">次にすること</p><h2>会場画面を確認して、発表を始める</h2><p class="lead">投票内容や人数はまだ公開されていません。開始すると、最初の数字だけを会場に表示します。</p>${button('最初の数字を表示して発表開始','advance','gold block')}</section>`;
