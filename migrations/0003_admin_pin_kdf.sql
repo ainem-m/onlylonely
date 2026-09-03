@@ -1,0 +1,1 @@
+ALTER TABLE admin_auth ADD COLUMN pin_iterations INTEGER NOT NULL DEFAULT 1;
