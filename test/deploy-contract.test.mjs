@@ -21,6 +21,17 @@ test('README and agent guide expose the canonical one-click deployment URL', () 
   assert.match(deployGuide, /\/admin/);
 });
 
+test('deployment prerequisites distinguish one-click from CLI requirements', () => {
+  for (const requirement of ['Cloudflareアカウント', 'GitHubアカウント', 'SESSION_SECRET', 'ADMIN_SETUP_SECRET', '4〜8桁の管理PIN']) {
+    assert.match(readme, new RegExp(requirement));
+  }
+  assert.match(readme, /独自ドメイン、サーバー、ローカルのNode\.js環境.*不要/);
+  assert.match(readme, /Workers Freeプラン/);
+  assert.match(readme, /利用上限/);
+  assert.match(deployGuide, /D1の読み書きと保存量には利用上限/);
+  assert.match(deployGuide, /Node\.js 22以上とターミナルが必要/);
+});
+
 test('Cloudflare deployment applies D1 migrations before publishing the Worker', () => {
   assert.equal(packageJson.scripts['db:migrations:apply'], 'wrangler d1 migrations apply DB --remote');
   assert.equal(packageJson.scripts.deploy, 'npm run db:migrations:apply && wrangler deploy');

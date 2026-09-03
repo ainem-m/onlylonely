@@ -2,6 +2,17 @@
 
 この文書は、`https://github.com/ainem-m/onlylonely`から、利用者専用のCloudflare Workers URLを作る作業契約です。
 
+## 利用者が用意するもの
+
+- **Cloudflareアカウント**：WorkerとD1の作成先です。Workers Freeプランから開始できますが、リクエスト数、CPU時間、D1の読み書きと保存量には利用上限があります。最新の条件はCloudflare公式の料金ページと上限ページで確認します。
+- **GitHubアカウント**：推奨するDeploy to Cloudflareフローが、利用者用のコピーを作成するために使います。
+- **秘密値を生成できるもの**：パスワード管理アプリなどを使い、32文字以上のランダム値を2つ生成します。
+- **4〜8桁の管理PIN**：デプロイ後に利用者が設定します。
+- **認証画面を操作できるブラウザ**：CloudflareとGitHubへのログイン、アカウント選択、秘密値入力に使います。
+
+Deploy to Cloudflareフローでは、独自ドメイン、常設サーバー、利用者側のNode.js環境は不要です。
+GitHubアカウントを使わない場合は、後述のCLI手順を使うため、Node.js 22以上とターミナルが必要です。
+
 ## 完了条件
 
 次の条件をすべて満たした時点で、デプロイ完了とします。
@@ -76,5 +87,8 @@ CloudflareやGitHubの認証、アカウント選択、秘密値入力が必要�
 ## Cloudflare公式資料
 
 - [Deploy to Cloudflare buttons](https://developers.cloudflare.com/workers/platform/deploy-buttons/)
+- [Workersの料金](https://developers.cloudflare.com/workers/platform/pricing/)
+- [Workersの利用上限](https://developers.cloudflare.com/workers/platform/limits/)
+- [D1の料金](https://developers.cloudflare.com/d1/platform/pricing/)
 - [WorkersのSecrets](https://developers.cloudflare.com/workers/configuration/secrets/)
 - [D1のWranglerコマンド](https://developers.cloudflare.com/d1/wrangler-commands/)

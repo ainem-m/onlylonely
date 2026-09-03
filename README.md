@@ -7,6 +7,16 @@
 
 ## 自分のURLへ公開する
 
+### 用意するもの
+
+- **Cloudflareアカウント**：WorkersとD1を作成します。小規模な利用は[Workers Freeプラン](https://developers.cloudflare.com/workers/platform/pricing/)から始められますが、リクエスト数、CPU時間、D1の読み書きと保存量には[利用上限](https://developers.cloudflare.com/workers/platform/limits/)があります。
+- **GitHubアカウント**：Deploy to Cloudflareが、このリポジトリを利用者のアカウントへコピーするために使います。
+- **2つの秘密値**：`SESSION_SECRET`と`ADMIN_SETUP_SECRET`へ、互いに異なる32文字以上のランダム値を設定します。パスワード管理アプリなどで生成し、会話やGitへ貼り付けないでください。
+- **4〜8桁の管理PIN**：デプロイ後の初回設定で、司会者が決めて入力します。
+
+独自ドメイン、サーバー、ローカルのNode.js環境は、Deploy to Cloudflareを使うだけなら不要です。
+公開後はCloudflareから`workers.dev`のURLが発行されます。
+
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/ainem-m/onlylonely)
 
 上のボタンからCloudflareへログインすると、このリポジトリのコピー、D1データベースの作成、マイグレーション、Workerの公開まで進められます。
