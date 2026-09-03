@@ -5,6 +5,17 @@
 > [!IMPORTANT]
 > 本プロジェクトは、ほぼ日刊イトイ新聞で実施された[「ONLYでLONELY」](https://www.1101.com/only_lonely/2003-04.html)に着想を得た非公式のWeb実装です。株式会社ほぼ日による公式・公認プロジェクトではありません。公式の文章、画像、ロゴ、デザイン等は使用していません。
 
+## 自分のURLへ公開する
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/ainem-m/onlylonely)
+
+上のボタンからCloudflareへログインすると、このリポジトリのコピー、D1データベースの作成、マイグレーション、Workerの公開まで進められます。
+設定画面では、`SESSION_SECRET`と`ADMIN_SETUP_SECRET`へ互いに異なる32文字以上のランダム値を入力してください。
+公開後に表示されたURLの末尾へ`/admin`を付け、`ADMIN_SETUP_SECRET`と任意の4〜8桁の管理PINで初回設定を完了すると遊べます。
+
+コーディングエージェントへ公開を依頼する場合は、リポジトリURLとともに[`DEPLOY.md`](DEPLOY.md)を読むよう伝えてください。
+Cloudflareの認証、アカウント選択、秘密値の入力は利用者が行い、エージェントへ秘密値を貼り付けないでください。
+
 ## ローカル起動
 
 Node.js 22以上が必要です。
@@ -41,6 +52,8 @@ npm run test:e2e
 実ブラウザでの見た目や印刷結果の確認は含みません。
 
 ## Cloudflareへ公開
+
+この節は、Deploy to Cloudflareボタンを使わず、現在のcloneをWranglerから直接公開する場合の手順です。
 
 ```bash
 npx wrangler login

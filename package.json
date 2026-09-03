@@ -13,7 +13,8 @@
     "test": "npm run test:unit",
     "test:unit": "node --experimental-strip-types --test test/*.test.mjs",
     "test:e2e": "node scripts/test-e2e.mjs",
-    "deploy": "wrangler deploy"
+    "db:migrations:apply": "wrangler d1 migrations apply DB --remote",
+    "deploy": "npm run db:migrations:apply && wrangler deploy"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "latest",
@@ -23,5 +24,18 @@
   },
   "dependencies": {
     "qrcode": "^1.5.4"
+  },
+  "cloudflare": {
+    "bindings": {
+      "DB": {
+        "description": "ゲーム設定、参加者、投票、発表状態をイベント期間中だけ保持するD1データベースです。"
+      },
+      "SESSION_SECRET": {
+        "description": "管理セッションの署名に使う秘密値です。パスワード管理アプリなどで32文字以上のランダム値を生成してください。"
+      },
+      "ADMIN_SETUP_SECRET": {
+        "description": "初回の管理PIN設定で一度入力する秘密値です。SESSION_SECRETとは別の32文字以上のランダム値にしてください。"
+      }
+    }
   }
 }
